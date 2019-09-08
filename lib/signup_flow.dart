@@ -1,7 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'home.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignupFlow extends StatefulWidget {
   @override
@@ -9,7 +11,7 @@ class SignupFlow extends StatefulWidget {
 }
 
 class _SignupFlowState extends State<SignupFlow> {
-  var stateArray = ["IGNORE", "", "", "IGNORE", "IGNORE", "", ""];
+  var stateArray = ["IGNORE", "", "", "IGNORE", "", "", ""];
   var pageNumber = 1;
   var questions = {1 : "What is your name?", 2 : "What is your phone number?",
   3 : "What can we help you with?", 4 : "Tell us some more about yourself", 5 : "Who is your HelpingHand?"};
@@ -39,19 +41,54 @@ class _SignupFlowState extends State<SignupFlow> {
     var url = 'http://f1b86f3f.ngrok.io/register_helping_hand';
     var response = await http.post(url,
         headers: {"Content-Type": "application/json"},
-        body: json.encode({'hhName': 'Aiden', 'hhPhone': '+17038947470', 'userName': "Amro"}));
+        body: json.encode({'hhName': stateArray[5].split(" ")[0], 'hhPhone': "+1" + stateArray[6].replaceAll("-", "").replaceAll(" ", ""),
+          'userName': stateArray[1].split(" ")[0]}));
     print('Response status: ${response.statusCode}');
     print('Response body: ${response.body}');
   }
 
   void goToHome() async {
+    var valid = true;
+    for (String str in stateArray) {
+      if (str != "IGNORE" && str.trim().length == 0) {
+        valid = false;
+      }
+    }
+    if (!valid) {
+      return;
+    }
+    Firestore.instance.collection("users").document("testUser").updateData(
+        {"hhAssistance" : false, "name" : stateArray[1], "phoneNumber" : "+1" + stateArray[2].replaceAll("-", "").replaceAll(" ", ""),
+          "HHName" : stateArray[5], "HHNumber" : "+1" + stateArray[6].replaceAll("-", "").replaceAll(" ", ""),
+          "daysClean" : 0, "dollarsSaved" : 0, "exerciseDays" : 0, "sleepDays" : 0, "logbookCount" : 0});
     var helpUrl = 'http://f1b86f3f.ngrok.io/register_helping_hand';
     var response = await http.post(helpUrl,
         headers: {"Content-Type": "application/json"},
-        body: json.encode({'hhName': 'Aiden', 'hhPhone': '+17038947470', 'userName': "Amro", "userPhone": "+17038947470"}));
+        body: json.encode({'hhName': stateArray[5].split(" ")[0], 'hhPhone': "+1" + stateArray[6].replaceAll("-", "").replaceAll(" ", ""),
+          'userName': stateArray[1].split(" ")[0], "userPhone": "+1" + stateArray[2].replaceAll("-", "").replaceAll(" ", "")}));
     print('Response status: ${response.statusCode}');
     print('Response body: ${response.body}');
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomePage()));
+    if (response.statusCode == 200) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomePage()));
+    }
+    else {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) => new CupertinoAlertDialog(
+          title: new Text("Error", textAlign: TextAlign.center,),
+          content: new Text("Sorry, something went wrong. Check your network and/or the phone number you provided and try again.", textAlign: TextAlign.center,),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              isDefaultAction: true,
+              child: new Text("Close"),
+            ),
+          ],
+        )
+      );
+    }
   }
 
   Widget nextButton() {
@@ -355,7 +392,9 @@ class _SignupFlowState extends State<SignupFlow> {
               color: Colors.amber,
             ),
             TextField(
-              onChanged: (newTitle) {},
+              onChanged: (newAmount) {
+                updateStateArray(newAmount);
+              },
               maxLength: 30,
               style: TextStyle(
                 fontSize: 25,
@@ -447,7 +486,9 @@ class _SignupFlowState extends State<SignupFlow> {
             padding: const EdgeInsets.only(right: 15),
             child: TextField(
               onChanged: (hhName) {
-                updateStateArray(hhName);
+                setState(() {
+                  stateArray[5] = hhName;
+                });
               },
               maxLength: 30,
               style: new TextStyle(
@@ -458,7 +499,7 @@ class _SignupFlowState extends State<SignupFlow> {
                 counterText: "",
                 border: InputBorder.none,
                 focusedBorder: InputBorder.none,
-                hintText: 'Thomas Jef...',
+                hintText: 'Thomas Jeffer...',
               ),
             ),
           ),
@@ -468,9 +509,10 @@ class _SignupFlowState extends State<SignupFlow> {
           child: Container(
             padding: const EdgeInsets.only(right: 15),
             child: TextField(
-              keyboardType: TextInputType.number,
               onChanged: (hhNum) {
-                updateStateArray(hhNum);
+                setState(() {
+                  stateArray[6] = hhNum;
+                });
               },
               maxLength: 30,
               style: new TextStyle(
